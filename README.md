@@ -30,3 +30,17 @@ npm start
 
 - APIキーやパスワードはコードに直書きせず `.env`（gitignore対象）で管理しています。
 - 収集したリード情報（`data/leads.json`）もリポジトリにコミットしません。
+
+## 公開（Renderへのデプロイ）
+
+このアプリはフロントエンド（チャットウィジェット）とバックエンド（Express + Claude API）が一体のNode.jsサーバーなので、GitHub Pages（静的ホスティングのみ）では公開できません。[Render](https://render.com) の無料Webサービスにデプロイします。
+
+1. Renderにアカウント登録し、GitHubと連携してこのリポジトリ（`chatbot-demolition`）を選択する。
+2. このリポジトリ直下の `render.yaml` が自動検出され、Web Service（Node環境、`npm install` → `npm start`）が設定される。
+3. デプロイ設定画面の環境変数で `ANTHROPIC_API_KEY` に自分のAPIキーを入力する（`render.yaml` には値を含めていないため、ここで手動設定が必要）。
+4. デプロイ完了後、発行されたURL（例: `https://chatbot-demolition.onrender.com`）でアプリにアクセスできる。
+
+### 注意点
+
+- Render無料プランのディスクは再起動・再デプロイ時にリセットされるため、`data/leads.json`（リード情報のスタブ保存先）は永続化されません。実運用では実CRM連携への切り替えが必要です。
+- 無料プランは一定時間アクセスがないとスリープし、次回アクセス時に起動まで数十秒かかることがあります。
