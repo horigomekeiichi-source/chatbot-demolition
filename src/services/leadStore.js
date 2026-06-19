@@ -1,7 +1,12 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
-const LEADS_FILE = path.join(__dirname, '..', '..', 'data', 'leads.json');
+// Vercelのサーバーレス関数はプロジェクトディレクトリが読み取り専用で、
+// 書き込み可能なのは /tmp のみ（かつ実行ごとに消える）。
+const LEADS_FILE = process.env.VERCEL
+  ? path.join(os.tmpdir(), 'leads.json')
+  : path.join(__dirname, '..', '..', 'data', 'leads.json');
 
 function readLeads() {
   if (!fs.existsSync(LEADS_FILE)) {

@@ -24,23 +24,23 @@ npm start
 ## API
 
 - `POST /api/chat` — `{ message, history }` を送るとClaudeの応答 `{ reply }` を返す。
-- `POST /api/leads` — `{ name, contact, message }` を送るとリード情報を `data/leads.json` に保存する（CRM連携のスタブ。実CRMへの接続は今後のフェーズで差し替え予定）。
+- `POST /api/leads` — `{ name, contact, message }` を送るとリード情報を保存する（CRM連携のスタブ。実CRMへの接続は今後のフェーズで差し替え予定。保存先はローカル/Renderでは `data/leads.json`、Vercelでは `/tmp/leads.json`）。
 
 ## セキュリティ
 
 - APIキーやパスワードはコードに直書きせず `.env`（gitignore対象）で管理しています。
 - 収集したリード情報（`data/leads.json`）もリポジトリにコミットしません。
 
-## 公開（Renderへのデプロイ）
+## 公開（Vercelへのデプロイ）
 
-このアプリはフロントエンド（チャットウィジェット）とバックエンド（Express + Claude API）が一体のNode.jsサーバーなので、GitHub Pages（静的ホスティングのみ）では公開できません。[Render](https://render.com) の無料Webサービスにデプロイします。
+このアプリはフロントエンド（チャットウィジェット、`public/`）と、Claude API呼び出しを行うバックエンドAPI（`api/index.js` から呼ばれるExpressアプリ `src/app.js`）に分かれており、[Vercel](https://vercel.com) のサーバーレス関数として公開できます。GitHub Pages（静的ホスティングのみ）ではバックエンドが動かせないため使用できません。
 
-1. Renderにアカウント登録し、GitHubと連携してこのリポジトリ（`chatbot-demolition`）を選択する。
-2. このリポジトリ直下の `render.yaml` が自動検出され、Web Service（Node環境、`npm install` → `npm start`）が設定される。
-3. デプロイ設定画面の環境変数で `ANTHROPIC_API_KEY` に自分のAPIキーを入力する（`render.yaml` には値を含めていないため、ここで手動設定が必要）。
-4. デプロイ完了後、発行されたURL（例: `https://chatbot-demolition.onrender.com`）でアプリにアクセスできる。
+1. Vercelにアカウント登録し、GitHubと連携してこのリポジトリ（`chatbot-demolition`）をインポートする。
+2. Framework Presetは「Other」のままでよい（ビルドコマンド不要）。`vercel.json` の設定により `/api/*` へのリクエストは `api/index.js`（Expressアプリ）にルーティングされ、`public/` 配下は静的ファイルとして配信される。
+3. プロジェクト設定の「Environment Variables」で `ANTHROPIC_API_KEY` に自分のAPIキーを追加する（コードやリポジトリには含めない）。
+4. デプロイ完了後、発行されたURL（例: `https://chatbot-demolition.vercel.app`）でアプリにアクセスできる。
 
 ### 注意点
 
-- Render無料プランのディスクは再起動・再デプロイ時にリセットされるため、`data/leads.json`（リード情報のスタブ保存先）は永続化されません。実運用では実CRM連携への切り替えが必要です。
-- 無料プランは一定時間アクセスがないとスリープし、次回アクセス時に起動まで数十秒かかることがあります。
+- Vercelのサーバーレス関数はプロジェクトディレクトリが読み取り専用で、書き込み可能なのは一時ディレクトリ（`/tmp`）のみ、かつ実行ごとにリセットされる。`leadStore.js` はVercel環境（`process.env.VERCEL`）を検知して `/tmp` に書き込むようにしているが、**リード情報は永続化されない**（CRM連携スタブとしての挙動は変わらない）。実運用では外部DBや実CRMへの接続が必要。
+- ローカル開発は `npm start`（`server.js` がポート3000でリッスン）で従来どおり動作する。

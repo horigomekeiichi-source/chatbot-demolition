@@ -24,23 +24,25 @@ curl -X POST http://localhost:3000/api/leads \
 
 ## Architecture
 
-Express製の単一サーバー（`server.js`）が、静的フロントエンド（`public/`）とAPIルートを両方ホストする構成。
+Express製のアプリ本体（`src/app.js`）を、ローカル/Renderでは長時間稼働サーバー（`server.js`）として、Vercelではサーバーレス関数（`api/index.js`）として、同じコードのまま2通りの方式で起動できる構成。
 
-- `server.js` — Expressエントリポイント。CORS・JSONパーサ・静的配信・ルーティングの設定のみを担う。
+- `src/app.js` — Express本体。CORS・JSONパーサ・静的配信・ルーティングの設定を担い、`app`（リスナーは持たない）をexportする。
+- `server.js` — ローカル/Render向けエントリポイント。`src/app.js` を読み込み `app.listen()` する。
+- `api/index.js` — Vercel向けエントリポイント。`src/app.js` の `app` をそのままexportし、Vercelのサーバーレス関数として実行される（`vercel.json` の rewrites で `/api/*` がここにルーティングされる）。
 - `src/services/claudeClient.js` — Anthropic SDKのクライアントとシステムプロンプトを保持。`sendMessage(history, userMessage)` がClaudeへのメッセージ送信を抽象化する唯一の場所。モデルやプロンプトの変更はここに集約する。
-- `src/services/leadStore.js` — リード（問い合わせ者）情報を `data/leads.json` に読み書きする。**CRM連携の差し替え点**：実CRM（HubSpot等）に接続する際はこのモジュールのインターフェース（`saveLead`）を保ったまま実装を入れ替える。
+- `src/services/leadStore.js` — リード（問い合わせ者）情報を読み書きする。**CRM連携の差し替え点**：実CRM（HubSpot等）に接続する際はこのモジュールのインターフェース（`saveLead`）を保ったまま実装を入れ替える。保存先は `process.env.VERCEL` の有無で分岐（ローカル/Render: `data/leads.json`、Vercel: `/tmp/leads.json`、いずれも永続化されない前提のスタブ）。
 - `src/routes/chat.js` — `POST /api/chat`。`claudeClient.sendMessage` を呼ぶだけの薄いハンドラ。
 - `src/routes/leads.js` — `POST /api/leads`。`leadStore.saveLead` を呼ぶだけの薄いハンドラ。
-- `public/widget.js` — フロントエンドのチャットUI。会話履歴をブラウザ側で保持し、`/api/chat` にPOSTする。サーバー側はステートレス（会話履歴を保存しない）。
+- `public/widget.js` — フロントエンドのチャットUI。会話履歴をブラウザ側で保持し、`/api/chat` にPOSTする。サーバー側はステートレス（会話履歴を保存しない）。`public/` はVercelでは静的ファイルとして自動配信される。
 
 ### セキュリティ方針
 
 - APIキー・パスワードはコードに直書きしない。`.env`（`.gitignore`対象）で管理し、`.env.example` をテンプレートとして使う。
-- 収集したリード情報（`data/leads.json`）はリポジトリにコミットしない（`.gitignore`対象）。他人のデータに無断でアクセスしない。
+- 収集したリード情報（`data/leads.json` / Vercelでは `/tmp/leads.json`）はリポジトリにコミットしない（`.gitignore`対象）。他人のデータに無断でアクセスしない。
 
 ## Deployment
 
-フロントエンドとバックエンドが一体のNode.jsサーバーのため、**GitHub Pages（静的ホスティングのみ）では公開できない**。[Render](https://render.com) の無料Webサービスにデプロイする（`render.yaml` にBlueprint定義済み）。`ANTHROPIC_API_KEY` はRenderダッシュボードの環境変数で設定し、`render.yaml` には値を含めない（`sync: false`）。手順は [README.md](README.md) の「公開（Renderへのデプロイ）」を参照。Render無料プランのディスクは再デプロイ時にリセットされるため、`data/leads.json` は永続化されない点に注意。
+**Vercel**にデプロイする（GitHub Pagesは静的ホスティングのみのため使用不可）。`vercel.json` の rewrites で `/api/*` を `api/index.js`（Expressアプリ）にルーティングし、`public/` 配下はVercelが静的ファイルとして自動配信する。`ANTHROPIC_API_KEY` はVercelダッシュボードの環境変数で設定し、コード・リポジトリには含めない。手順は [README.md](README.md) の「公開（Vercelへのデプロイ）」を参照。Vercelのサーバーレス関数はプロジェクトディレクトリが読み取り専用のため、`data/leads.json` への書き込みは行えず `leadStore.js` が `/tmp` にフォールバックする（いずれも永続化されない）。
 
 ## Git Workflow Rules
 
