@@ -3,16 +3,37 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>空き家・解体・不動産相談AIチャットボット（デモ）</title>
+<title>空き家・解体・不動産相談AIチャットボット</title>
 <link rel="stylesheet" href="widget.css" />
 </head>
 <body>
-  <main class="demo-page">
-    <h1>空き家・解体・不動産相談サイト（デモ）</h1>
-    <p>このページは、AIチャットボットウィジェットの埋め込みデモです。右下のチャットアイコンから相談を開始できます。</p>
+  <header class="page-header">
+    <h1>空き家・解体・不動産相談AIチャットボット</h1>
+    <p>空き家・実家オーナー・土地売却検討者・建替え検討者の皆様のご相談を、AIが24時間お受けします。</p>
+  </header>
+
+  <main class="app-layout">
+    <section id="question-frame" class="frame">
+      <h2>質問する</h2>
+      <p id="greeting"></p>
+      <div id="chat-input-area">
+        <textarea id="chat-input" placeholder="ご相談内容を入力してください（Shift+Enterで改行）"></textarea>
+        <button id="chat-send">送信</button>
+      </div>
+    </section>
+
+    <section id="answer-frame" class="frame">
+      <h2>回答一覧</h2>
+      <table id="answers-table">
+        <thead>
+          <tr><th>質問</th><th>回答</th></tr>
+        </thead>
+        <tbody id="answers-body"></tbody>
+      </table>
+      <p id="answers-empty">まだ回答はありません。左の「質問する」エリアからご相談内容を送信してください。</p>
+    </section>
   </main>
 
-  <div id="chat-widget"></div>
   <script src="widget.js"></script>
 </body>
 </html>

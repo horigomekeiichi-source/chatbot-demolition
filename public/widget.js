@@ -1,77 +1,110 @@
 (function () {
-  const root = document.getElementById('chat-widget');
-
-  root.innerHTML = `
-    <button id="chat-toggle" aria-label="チャットを開く">💬</button>
-    <div id="chat-panel" class="hidden">
-      <div id="chat-header">
-        <span id="chat-title">空き家・解体・不動産相談</span>
-        <div id="chat-tabs">
-          <button id="tab-ask" class="tab active">質問する</button>
-          <button id="tab-answers">回答一覧</button>
-        </div>
-      </div>
-
-      <div id="ask-screen">
-        <div id="ask-greeting"></div>
-        <div id="chat-input-area">
-          <input id="chat-input" type="text" placeholder="ご相談内容を入力してください" />
-          <button id="chat-send">送信</button>
-        </div>
-      </div>
-
-      <div id="answers-screen" class="hidden">
-        <table id="answers-table">
-          <thead>
-            <tr><th>質問</th><th>回答</th></tr>
-          </thead>
-          <tbody id="answers-body"></tbody>
-        </table>
-        <p id="answers-empty">まだ回答はありません。「質問する」画面からご相談内容を送信してください。</p>
-      </div>
-    </div>
-  `;
-
-  const toggleBtn = document.getElementById('chat-toggle');
-  const panel = document.getElementById('chat-panel');
-  const tabAsk = document.getElementById('tab-ask');
-  const tabAnswers = document.getElementById('tab-answers');
-  const askScreen = document.getElementById('ask-screen');
-  const answersScreen = document.getElementById('answers-screen');
-  const answersBody = document.getElementById('answers-body');
-  const answersEmpty = document.getElementById('answers-empty');
-  const greetingEl = document.getElementById('ask-greeting');
+  const greetingEl = document.getElementById('greeting');
   const input = document.getElementById('chat-input');
   const sendBtn = document.getElementById('chat-send');
+  const answersBody = document.getElementById('answers-body');
+  const answersEmpty = document.getElementById('answers-empty');
 
   const history = [];
-  let greeted = false;
 
-  toggleBtn.addEventListener('click', () => {
-    panel.classList.toggle('hidden');
-    if (!panel.classList.contains('hidden') && !greeted) {
-      greeted = true;
-      greetingEl.textContent =
-        'こんにちは。空き家・解体・不動産売却・建替えに関するご相談を承っています。どのようなことでお悩みですか？';
-    }
-  });
+  greetingEl.textContent =
+    'こんにちは。空き家・解体・不動産売却・建替えに関するご相談を承っています。どのようなことでお悩みですか？';
 
-  function showScreen(screen) {
-    if (screen === 'ask') {
-      askScreen.classList.remove('hidden');
-      answersScreen.classList.add('hidden');
-      tabAsk.classList.add('active');
-      tabAnswers.classList.remove('active');
-    } else {
-      askScreen.classList.add('hidden');
-      answersScreen.classList.remove('hidden');
-      tabAsk.classList.remove('active');
-      tabAnswers.classList.add('active');
-    }
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
   }
 
-  tabAsk.addEventListener('click', () => showScreen('ask'));
-  tabAnswers.addEventListener('click', () => showScreen('answers'));
+  // Claudeの回答に含まれるMarkdown記法（見出し・太字・箇条書き等）を
+  // 装飾記号のまま表示せず、整形済みの文章として見せるための簡易レンダラー。
+  function markdownToHtml(markdown) {
+    const escaped = escapeHtml(markdown).replace(/\r\n/g, '\n');
+    const lines = escaped.split('\n');
+
+    const htmlLines = [];
+    let listType = null; // 'ul' | 'ol' | null
+    let paragraphBuffer = [];
+
+    function flushParagraph() {
+      if (paragraphBuffer.length) {
+        htmlLines.push('<p>' + paragraphBuffer.join('<br>') + '</p>');
+        paragraphBuffer = [];
+      }
+    }
+
+    function closeList() {
+      if (listType) {
+        htmlLines.push(`</${listType}>`);
+        listType = null;
+      }
+    }
+
+    function inline(text) {
+      return text
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/(^|[^*])\*([^*]+)\*/g, '$1<em>$2</em>');
+    }
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+
+      if (!line) {
+        flushParagraph();
+        closeList();
+        continue;
+      }
+
+      if (/^(---|\*\*\*|___)$/.test(line)) {
+        flushParagraph();
+        closeList();
+        htmlLines.push('<hr>');
+        continue;
+      }
+
+      const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+      if (headingMatch) {
+        flushParagraph();
+        closeList();
+        const level = headingMatch[1].length;
+        htmlLines.push(`<h${level}>${inline(headingMatch[2])}</h${level}>`);
+        continue;
+      }
+
+      const ulMatch = line.match(/^[-*]\s+(.*)$/);
+      const olMatch = line.match(/^\d+\.\s+(.*)$/);
+
+      if (ulMatch) {
+        flushParagraph();
+        if (listType !== 'ul') {
+          closeList();
+          htmlLines.push('<ul>');
+          listType = 'ul';
+        }
+        htmlLines.push(`<li>${inline(ulMatch[1])}</li>`);
+        continue;
+      }
+
+      if (olMatch) {
+        flushParagraph();
+        if (listType !== 'ol') {
+          closeList();
+          htmlLines.push('<ol>');
+          listType = 'ol';
+        }
+        htmlLines.push(`<li>${inline(olMatch[1])}</li>`);
+        continue;
+      }
+
+      closeList();
+      paragraphBuffer.push(inline(line));
+    }
+
+    flushParagraph();
+    closeList();
+
+    return htmlLines.join('');
+  }
 
   function addAnswerRow(question, answer, isError) {
     answersEmpty.classList.add('hidden');
@@ -80,12 +113,18 @@
 
     const qCell = document.createElement('td');
     qCell.textContent = question;
+
     const aCell = document.createElement('td');
-    aCell.textContent = answer;
+    if (isError) {
+      aCell.textContent = answer;
+    } else {
+      aCell.innerHTML = markdownToHtml(answer);
+    }
 
     row.appendChild(qCell);
     row.appendChild(aCell);
     answersBody.appendChild(row);
+    row.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }
 
   async function sendMessage() {
@@ -105,24 +144,25 @@
 
       if (!res.ok) {
         addAnswerRow(text, data.error || 'エラーが発生しました。', true);
-        showScreen('answers');
         return;
       }
 
       history.push({ role: 'user', content: text });
       history.push({ role: 'assistant', content: data.reply });
       addAnswerRow(text, data.reply, false);
-      showScreen('answers');
     } catch (err) {
       addAnswerRow(text, 'サーバーに接続できませんでした。', true);
-      showScreen('answers');
     } finally {
       sendBtn.disabled = false;
+      input.focus();
     }
   }
 
   sendBtn.addEventListener('click', sendMessage);
   input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') sendMessage();
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
   });
 })();
