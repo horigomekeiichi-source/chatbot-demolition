@@ -34,6 +34,22 @@
     </section>
   </main>
 
+  <section id="estimate-frame" class="frame estimate-frame">
+    <h2>解体見積もり（住所から）</h2>
+    <p class="estimate-disclaimer">
+      入力された住所のGoogleストリートビュー画像をAIが目視で確認し、解体費用の参考レンジをお伝えします。
+      正式な見積もりではありません。実際の見積もりには現地調査が必要です。
+    </p>
+    <div id="estimate-input-area">
+      <input id="estimate-address" type="text" placeholder="例: 東京都〇〇区〇〇 1-2-3" />
+      <button id="estimate-send">見積もりを取得</button>
+    </div>
+    <div id="estimate-result" class="hidden">
+      <img id="estimate-image" alt="対象住所のストリートビュー画像" />
+      <div id="estimate-text"></div>
+    </div>
+  </section>
+
   <script src="widget.js"></script>
 </body>
 </html>

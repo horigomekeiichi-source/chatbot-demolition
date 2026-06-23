@@ -156,6 +156,79 @@ body {
   color: #777;
 }
 
+.estimate-frame {
+  max-width: 1200px;
+  margin: 0 auto 32px;
+  padding: 16px 20px 24px;
+}
+
+.estimate-disclaimer {
+  font-size: 13px;
+  color: #777;
+  margin: 0 0 16px;
+  line-height: 1.6;
+}
+
+#estimate-input-area {
+  display: flex;
+  gap: 10px;
+}
+
+#estimate-address {
+  flex: 1;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 14px;
+}
+
+#estimate-send {
+  border: none;
+  border-radius: 6px;
+  background: #2d6a4f;
+  color: #fff;
+  padding: 0 16px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+#estimate-send:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+#estimate-result {
+  display: flex;
+  gap: 20px;
+  margin-top: 20px;
+  align-items: flex-start;
+}
+
+#estimate-result.hidden {
+  display: none;
+}
+
+#estimate-image {
+  width: 320px;
+  max-width: 40%;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+#estimate-text {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+#estimate-text p {
+  margin: 0 0 10px;
+}
+
+.estimate-error {
+  color: #a30000;
+}
+
 @media (max-width: 720px) {
   .app-layout {
     flex-direction: column;
@@ -165,5 +238,14 @@ body {
     flex: 1 1 auto;
     position: static;
     width: 100%;
+  }
+
+  #estimate-result {
+    flex-direction: column;
+  }
+
+  #estimate-image {
+    width: 100%;
+    max-width: 100%;
   }
 }

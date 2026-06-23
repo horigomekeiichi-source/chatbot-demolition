@@ -13,6 +13,15 @@ const SYSTEM_PROMPT = `あなたは「空き家・解体・不動産売却・建
 
 トーン: 丁寧で安心感のある日本語。営業的に押し付けず、相談者のペースに合わせる。`;
 
+const ESTIMATE_PROMPT = `あなたは解体工事の概算見積もりを行うアシスタントです。
+添付されたGoogleストリートビュー画像から見える建物の外観（推定階数、推定建築面積、構造の見た目、老朽度、前面道路の幅や重機が入れそうか等）をもとに、解体費用の「ごく粗い参考レンジ」を日本円で提示してください。
+
+必ず守ること:
+- 画像から正確な面積や構造は分からないため、過度に断定的な金額を述べない。複数のシナリオ（例: 木造2階建ての場合／鉄骨の場合）を想定して幅のある金額レンジを示してもよい。
+- 回答の最初に「この金額はストリートビュー画像からのAIによる目視推定であり、正式な見積もりではありません」という趣旨の注意書きを明記する。
+- 正確な見積もりには現地調査（建物面積の実測、構造・建材の確認、アスベスト等の有無、重機の搬入経路の確認）が必要であることを案内する。
+- 個人情報（連絡先等）を求める必要はない。`;
+
 let client = null;
 
 function getClient() {
@@ -43,4 +52,32 @@ async function sendMessage(history, userMessage) {
     .join('');
 }
 
-module.exports = { sendMessage };
+async function estimateFromImage(address, imageBase64, mediaType) {
+  const response = await getClient().messages.create({
+    model: 'claude-sonnet-4-6',
+    max_tokens: 1024,
+    system: ESTIMATE_PROMPT,
+    messages: [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: mediaType, data: imageBase64 },
+          },
+          {
+            type: 'text',
+            text: `住所「${address}」の建物です。この外観画像から解体費用の参考レンジを教えてください。`,
+          },
+        ],
+      },
+    ],
+  });
+
+  return response.content
+    .filter((block) => block.type === 'text')
+    .map((block) => block.text)
+    .join('');
+}
+
+module.exports = { sendMessage, estimateFromImage };

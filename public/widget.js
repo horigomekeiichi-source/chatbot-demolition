@@ -165,4 +165,52 @@
       sendMessage();
     }
   });
+
+  // 住所からの解体見積もり
+  const estimateAddressInput = document.getElementById('estimate-address');
+  const estimateSendBtn = document.getElementById('estimate-send');
+  const estimateResult = document.getElementById('estimate-result');
+  const estimateImage = document.getElementById('estimate-image');
+  const estimateText = document.getElementById('estimate-text');
+
+  async function sendEstimateRequest() {
+    const address = estimateAddressInput.value.trim();
+    if (!address) return;
+
+    estimateSendBtn.disabled = true;
+    estimateResult.classList.remove('hidden');
+    estimateImage.removeAttribute('src');
+    estimateText.innerHTML = '<p>見積もりを取得しています…（10〜20秒ほどかかります）</p>';
+
+    try {
+      const res = await fetch('/api/estimate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        estimateText.innerHTML = `<p class="estimate-error">${escapeHtml(
+          data.error || 'エラーが発生しました。'
+        )}</p>`;
+        return;
+      }
+
+      estimateImage.src = data.imageDataUrl;
+      estimateText.innerHTML = markdownToHtml(data.estimate);
+    } catch (err) {
+      estimateText.innerHTML = '<p class="estimate-error">サーバーに接続できませんでした。</p>';
+    } finally {
+      estimateSendBtn.disabled = false;
+    }
+  }
+
+  estimateSendBtn.addEventListener('click', sendEstimateRequest);
+  estimateAddressInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      sendEstimateRequest();
+    }
+  });
 })();

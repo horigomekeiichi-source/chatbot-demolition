@@ -29,16 +29,19 @@ Express製のアプリ本体（`src/app.js`）を、ローカル/Renderでは長
 - `src/app.js` — Express本体。CORS・JSONパーサ・静的配信・ルーティングの設定を担い、`app`（リスナーは持たない）をexportする。
 - `server.js` — ローカル/Render向けエントリポイント。`src/app.js` を読み込み `app.listen()` する。
 - `api/index.js` — Vercel向けエントリポイント。`src/app.js` の `app` をそのままexportし、Vercelのサーバーレス関数として実行される（`vercel.json` の rewrites で `/api/*` がここにルーティングされる）。
-- `src/services/claudeClient.js` — Anthropic SDKのクライアントとシステムプロンプトを保持。`sendMessage(history, userMessage)` がClaudeへのメッセージ送信を抽象化する唯一の場所。モデルやプロンプトの変更はここに集約する。
+- `src/services/claudeClient.js` — Anthropic SDKのクライアントとシステムプロンプトを保持。`sendMessage(history, userMessage)` がClaudeへの通常メッセージ送信、`estimateFromImage(address, imageBase64, mediaType)` が画像を見せて解体費用の参考レンジを聞く処理を担う。モデルやプロンプトの変更はここに集約する。
 - `src/services/leadStore.js` — リード（問い合わせ者）情報を読み書きする。**CRM連携の差し替え点**：実CRM（HubSpot等）に接続する際はこのモジュールのインターフェース（`saveLead`）を保ったまま実装を入れ替える。保存先は `process.env.VERCEL` の有無で分岐（ローカル/Render: `data/leads.json`、Vercel: `/tmp/leads.json`、いずれも永続化されない前提のスタブ）。
+- `src/services/streetView.js` — Google Maps Platform の Street View Static API を呼び出し、住所からその場所の外観画像（base64）を取得する。画像が存在しない住所はエラーを投げる。`GOOGLE_MAPS_API_KEY` はサーバー側だけで使用し、ブラウザには渡さない（フロントにはStreet ViewのAPIキーを直接埋め込まない）。
 - `src/routes/chat.js` — `POST /api/chat`。`claudeClient.sendMessage` を呼ぶだけの薄いハンドラ。
 - `src/routes/leads.js` — `POST /api/leads`。`leadStore.saveLead` を呼ぶだけの薄いハンドラ。
-- `public/widget.js` — フロントエンドのチャットUI。会話履歴をブラウザ側で保持し、`/api/chat` にPOSTする。サーバー側はステートレス（会話履歴を保存しない）。`public/` はVercelでは静的ファイルとして自動配信される。
+- `src/routes/estimate.js` — `POST /api/estimate`。`streetView.getStreetViewImage` → `claudeClient.estimateFromImage` の順に呼び、取得した画像（data URL）と見積もりテキストを返す。
+- `public/widget.js` — フロントエンドのUI。チャットの会話履歴をブラウザ側で保持し `/api/chat` にPOSTする（サーバー側はステートレス）。住所入力フォームから `/api/estimate` を呼び、返ってきた画像と見積もりテキストを表示する。`public/` はVercelでは静的ファイルとして自動配信される。
 
 ### セキュリティ方針
 
-- APIキー・パスワードはコードに直書きしない。`.env`（`.gitignore`対象）で管理し、`.env.example` をテンプレートとして使う。
+- APIキー・パスワードはコードに直書きしない。`.env`（`.gitignore`対象）で管理し、`.env.example` をテンプレートとして使う。`GOOGLE_MAPS_API_KEY` も同様（Street View Static API限定の制限をかけることを推奨）。
 - 収集したリード情報（`data/leads.json` / Vercelでは `/tmp/leads.json`）はリポジトリにコミットしない（`.gitignore`対象）。他人のデータに無断でアクセスしない。
+- `/api/estimate` が返す解体費用の見積もりは、ストリートビュー画像のみに基づくAIの目視推定であり、正式な見積もりではない（`claudeClient.js` のプロンプトでもその旨を明記させている）。表示・案内時にこの前提を省略しないこと。
 
 ## Deployment
 
